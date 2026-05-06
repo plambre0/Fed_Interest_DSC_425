@@ -46,7 +46,13 @@ autoplot(houses_log_diff)
 # acf
 
 # eacf
-
+library(TSA)
+TSA::eacf(mortgage_ts)
+TSA::eacf(mortgage_diff)
+TSA::eacf(fedfunds_ts)
+TSA::eacf(fedfunds_diff)
+TSA::eacf(houses_ts)
+TSA::eacf(houses_log_diff)
 # pacf
 # ff pacf
 pacf(as.numeric(fedfunds_diff))
