@@ -41,3 +41,28 @@ autoplot(houses_ts)
 # log diff
 houses_log_diff = diff(log(houses_ts), differences = 1)
 autoplot(houses_log_diff)
+
+
+# acf
+
+# eacf
+
+# pacf
+# ff pacf
+pacf(as.numeric(fedfunds_diff))
+# strong spikes at lag1 and lag2
+# AR2 process
+# some more spikes later, but less significant
+# possible MA
+
+# mortgage pacf
+pacf(as.numeric(mortgage_diff))
+# AR2 or AR3
+
+# houses pacf
+pacf(as.numeric(houses_log_diff))
+# AR1 or AR2
+# maybe some MA
+# signicant spikes at 12 and 24. seasonality?
+
+# arima
