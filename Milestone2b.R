@@ -43,9 +43,9 @@ houses_log_diff = diff(log(houses_ts), differences = 1)
 autoplot(houses_log_diff)
 
 
-# acf
+##### acf #####
 
-# eacf
+##### eacf #####
 library(TSA)
 TSA::eacf(mortgage_ts)
 TSA::eacf(mortgage_diff)
@@ -53,7 +53,8 @@ TSA::eacf(fedfunds_ts)
 TSA::eacf(fedfunds_diff)
 TSA::eacf(houses_ts)
 TSA::eacf(houses_log_diff)
-# pacf
+
+###### pacf #####
 # ff pacf
 pacf(as.numeric(fedfunds_diff))
 # strong spikes at lag1 and lag2
@@ -71,4 +72,34 @@ pacf(as.numeric(houses_log_diff))
 # maybe some MA
 # signicant spikes at 12 and 24. seasonality?
 
-# arima
+###### arima ######
+library(forecast)
+
+#federal funds
+fed_fit1 <- arima(fedfunds_ts, order = c(2,1,0))
+fed_fit2 <- arima(fedfunds_ts, order = c(2,1,1))
+fed_auto  <- auto.arima(fedfunds_ts)
+
+AIC(fed_fit1, fed_fit2)
+summary(fed_auto)
+checkresiduals(fed_fit1)
+
+#mortgage rates
+mort_fit1 <- arima(mortgage_ts, order = c(2,1,0))
+mort_fit2 <- arima(mortgage_ts, order = c(3,1,0))
+mort_auto  <- auto.arima(mortgage_ts)
+
+AIC(mort_fit1, mort_fit2)
+summary(mort_auto)
+checkresiduals(mort_fit1)
+
+#housing starts
+houses_fit1 <- arima(houses_ts, order = c(1,1,0))
+houses_fit2 <- arima(houses_ts, order = c(2,1,0))
+houses_sarima <- arima(houses_ts, order = c(1,1,0), 
+                       seasonal = list(order = c(1,0,0), period = 12))
+houses_auto <- auto.arima(houses_ts, seasonal = TRUE)
+
+AIC(houses_fit1, houses_fit2, houses_sarima)
+summary(houses_auto)
+checkresiduals(houses_sarima)
