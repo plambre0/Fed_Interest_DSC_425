@@ -133,8 +133,11 @@ eacf(as.numeric(houses_ld))
 
 # federal funds
 fed_fit1 <- arima(fedfunds_ts, order=c(2,1,0))
+fed_fit1a = Arima(fedfunds_ts, order = c(2,1,0))
 fed_fit2 <- arima(fedfunds_ts, order=c(2,1,1))
+fed_fit2a <- Arima(fedfunds_ts, order=c(2,1,1))
 fed_fit3 <- arima(fedfunds_ts, order=c(0,1,1))
+fed_fit3a <- Arima(fedfunds_ts, order=c(0,1,1))
 fed_fit_auto <- auto.arima(fedfunds_ts)
 fed_fit_auto
 
@@ -148,8 +151,11 @@ coeftest(fed_fit_auto)
 
 # mortgage rates
 mort_fit1 <- arima(log(mortgage_ts), order=c(2,1,0))
+mort_fit1a <- Arima(log(mortgage_ts), order=c(2,1,0))
 mort_fit2 <- arima(log(mortgage_ts), order=c(3,1,0))
+mort_fit2a <- Arima(log(mortgage_ts), order=c(3,1,0))
 mort_fit3 <- arima(log(mortgage_ts), order=c(0,1,1))
+mort_fit3a <- Arima(log(mortgage_ts), order=c(0,1,1))
 mort_auto <- auto.arima(log(mortgage_ts))
 mort_auto
 
@@ -163,8 +169,11 @@ coeftest(mort_auto)
 
 # housing starts
 houses_fit1 <- arima(log(houses_ts), order=c(0,1,1))
+houses_fit1a <- Arima(log(houses_ts), order=c(0,1,1))
 houses_fit2 <- arima(log(houses_ts), order=c(1,1,0))
+houses_fit2a <- Arima(log(houses_ts), order=c(1,1,0))
 houses_fit3 <- arima(log(houses_ts), order=c(1,1,1))
+houses_fit3a <- Arima(log(houses_ts), order=c(1,1,1))
 houses_sarima1 <- arima(log(houses_ts), order=c(0,1,1),
                         seasonal=list(order=c(1,0,0), period=12))
 houses_sarima2 <- arima(log(houses_ts), order=c(0,1,1),
@@ -210,3 +219,21 @@ autoForecastMortgage = forecast(mort_auto, h=24)
 autoplot(autoForecastMortgage)
 autoForecastHouses = forecast(houses_auto, h=24)
 autoplot(autoForecastHouses)
+fedForecast1 = forecast(fed_fit1a, 24)
+autoplot(fedForecast1)
+fedForecast2 = forecast(fed_fit2a, 24)
+autoplot(fedForecast2)
+fedForecast3 = forecast(fed_fit3a, 24)
+autoplot(fedForecast3)
+mortgageForecast1 = forecast(mort_fit1a, 24)
+autoplot(mortgageForecast1)
+mortgageForecast2 = forecast(mort_fit2a, 24)
+autoplot(mortgageForecast2)
+mortgageForecast3 = forecast(mort_fit3a, 24)
+autoplot(mortgageForecast3)
+houseForecast1 = forecast(houses_fit1a, 24)
+autoplot(houseForecast1)
+houseForecast2 = forecast(houses_fit2a, 24)
+autoplot(houseForecast2)
+houseForecast3 = forecast(houses_fit3a, 24)
+autoplot(houseForecast3)
