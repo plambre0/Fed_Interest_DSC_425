@@ -202,3 +202,11 @@ coeftest(houses_sarima4)
 checkresiduals(houses_sarima2)
 Box.test(residuals(houses_sarima2), lag=24, type="Ljung-Box")
 coeftest(houses_sarima2)
+
+#forecast models
+autoForecastFed = forecast(fed_fit_auto, h=24)
+autoplot(autoForecastFed)
+autoForecastMortgage = forecast(mort_auto, h=24)
+autoplot(autoForecastMortgage)
+autoForecastHouses = forecast(houses_auto, h=24)
+autoplot(autoForecastHouses)
