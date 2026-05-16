@@ -176,13 +176,23 @@ houses_fit3 <- arima(log(houses_ts), order=c(1,1,1))
 houses_fit3a <- Arima(log(houses_ts), order=c(1,1,1))
 houses_sarima1 <- arima(log(houses_ts), order=c(0,1,1),
                         seasonal=list(order=c(1,0,0), period=12))
+houses_sarima1a <- Arima(log(houses_ts), order=c(0,1,1),
+                        seasonal=list(order=c(1,0,0), period=12))
 houses_sarima2 <- arima(log(houses_ts), order=c(0,1,1),
+                        seasonal=list(order=c(1,0,1), period=12))
+houses_sarima2a <- Arima(log(houses_ts), order=c(0,1,1),
                         seasonal=list(order=c(1,0,1), period=12))
 houses_sarima3 <- arima(log(houses_ts), order=c(1,1,1),
                         seasonal=list(order=c(1,0,1), period=12))
+houses_sarima3a <- Arima(log(houses_ts), order=c(1,1,1),
+                        seasonal=list(order=c(1,0,1), period=12))
 houses_sarima4 <- arima(log(houses_ts), order=c(2,1,1),
                         seasonal=list(order=c(1,0,1), period=12))
+houses_sarima4a <- Arima(log(houses_ts), order=c(2,1,1),
+                        seasonal=list(order=c(1,0,1), period=12))
 houses_sarima5 <- arima(log(houses_ts), order=c(1,1,2),
+                        seasonal=list(order=c(1,0,1), period=12))
+houses_sarima5a <- Arima(log(houses_ts), order=c(1,1,2),
                         seasonal=list(order=c(1,0,1), period=12))
 houses_auto <- auto.arima(log(houses_ts))
 houses_auto
@@ -237,3 +247,13 @@ houseForecast2 = forecast(houses_fit2a, 24)
 autoplot(houseForecast2)
 houseForecast3 = forecast(houses_fit3a, 24)
 autoplot(houseForecast3)
+sHouseForecast1 = forecast(houses_sarima1a, 24)
+autoplot(sHouseForecast1)
+sHouseForecast2 = forecast(houses_sarima2a, 24)
+autoplot(sHouseForecast2)
+sHouseForecast3 = forecast(houses_sarima3a, 24)
+autoplot(sHouseForecast3)
+sHouseForecast4 = forecast(houses_sarima4a, 24)
+autoplot(sHouseForecast4)
+sHouseForecast5 = forecast(houses_sarima5a, 24)
+autoplot(sHouseForecast5)
