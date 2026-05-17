@@ -5,6 +5,8 @@ library(lubridate)
 library(patchwork)
 library(TSA)
 library(lmtest)
+library(forecast)
+library(fUnitRoots)
 
 fedfunds <- read.csv("FEDFUNDS-2.csv")
 mortgage <- read.csv("MORTGAGE30US-2.csv")
@@ -26,15 +28,18 @@ mortgage = mortgage %>%
 head(mortgage)
 
 
-#### Initial Plots ####
+#### Initial Plots, differencing, logs, and stationarity checks ####
 
 # ff ts object
 fedfunds_ts = ts(fedfunds$FEDFUNDS, start=c(1976,1), frequency=12)
 autoplot(fedfunds_ts) # not multiplicative, so not log, but mean in changing
 # take diff
 fedfunds_diff = diff(fedfunds_ts, differences = 1)
-# high volatility, but logdiff just moved the volatility
 autoplot(fedfunds_diff)
+# Stationary
+adfTest(fedfunds_diff, type="nc")
+kpss.test(fedfunds_diff)
+
 
 # mortgage ts
 mortgage_ts = ts(mortgage$MORTGAGE30US, start=c(1976,1), frequency=12)
@@ -42,17 +47,29 @@ autoplot(mortgage_ts)
 # take log diff
 mortgage_ld = diff(log(mortgage_ts), differences = 1)
 autoplot(mortgage_ld)
+# stationary
+adfTest(mortgage_ld, type="nc")
+kpss.test(mortgage_ld)
+
 
 houses_ts = ts(houses$HOUST1F, start=c(1976,1), frequency=12)
 autoplot(houses_ts)
 # log diff
 houses_ld = diff(log(houses_ts), differences = 1)
 autoplot(houses_ld)
+# Stationary
+adfTest(houses_ld, type="nc")
+kpss.test(houses_ld)
+
+
+# all stationary after differencing/log differencing
+
 
 # plot together with patchwork
 fedfunds_plot = autoplot(fedfunds_diff, color="firebrick") +
   labs(title="Differenced: Federal Funds Rate", y="", x="") +
   theme_minimal()
+fedfunds_plot
 mortgage_plot = autoplot(mortgage_ld, color="steelblue") +
   labs(title="Log-Differenced: Mortgage Rate", y="", x="") +
   theme_minimal()
@@ -65,18 +82,23 @@ fedfunds_plot / mortgage_plot / houses_plot
 
 ##### acf #####
 
-fedfunds_acf = autoplot(acf(as.numeric(fedfunds_diff), lag.max=24, plot=FALSE)) +
-  labs(title="Federal Funds Rate ACF", x="Lag", y="") +
-  theme_minimal()
-mortgage_acf = autoplot(acf(as.numeric(mortgage_ld), lag.max=24, plot=FALSE)) +
-  labs(title="Mortgage Rate ACF", x="Lag", y="") +
-  theme_minimal()
-houses_acf = autoplot(acf(as.numeric(houses_ld), lag.max=24, plot=FALSE)) +
-  labs(title="Housing Starts ACF", x="Lag", y="") +
-  theme_minimal()
+fedfunds_acf = autoplot(Acf(fedfunds_diff)) +
+  labs(title="Federal Funds Rate ACF", x="Lag", y="")
+# largest spike at lag 1, some potential seasonality
+
+
+mortgage_acf = autoplot(Acf(mortgage_ld)) +
+  labs(title="Mortgage Rate ACF", x="Lag", y="")
+# large spike at lag1, another at 21, probably spurious - MA(1)
+
+
+houses_acf = autoplot(Acf(houses_ld)) +
+  labs(title="Housing Starts ACF", x="Lag", y="")
+# MA, maybe some seasonality
+
+
 # combine with patchwork
 fedfunds_acf / mortgage_acf / houses_acf
-
 
 
 #### pacf ####
