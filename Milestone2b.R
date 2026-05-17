@@ -168,10 +168,17 @@ fed_fit_auto
 coeftest(fed_fit_auto) # significant
 checkresiduals(fed_fit_auto) # still not great
 Box.test(residuals(fed_fit_auto), lag=24, type="Ljung-Box") # residuals not white noise
- 
+
+fed_fit_autob <- auto.arima(fedfunds_ts, ic="bic")
+fed_fit_autob
+coeftest(fed_fit_autob) # significant
+checkresiduals(fed_fit_autob) # still not great
+Box.test(residuals(fed_fit_autob), lag=24, type="Ljung-Box")
+# same as AIC
+
 # AIC/BIC comparison
-AIC(fed_fit1, fed_fit2, fed_fit3, fed_fit_auto)
-BIC(fed_fit1, fed_fit2, fed_fit3, fed_fit_auto)
+AIC(fed_fit1, fed_fit2, fed_fit3, fed_fit_auto, fed_fit_autob)
+BIC(fed_fit1, fed_fit2, fed_fit3, fed_fit_auto, fed_fit_autob)
 
 # auto.arima was the best fit by all metrics, but residuals did not reach white noise
 
@@ -208,9 +215,15 @@ coeftest(mort_auto) # also went with ARIMA(0,1,1)
 checkresiduals(mort_auto)
 Box.test(residuals(mort_auto), lag=24, type="Ljung-Box")
 
+mort_autob <- auto.arima(log(mortgage_ts), ic="bic")
+mort_autob
+coeftest(mort_autob) # also went with ARIMA(0,1,1)
+checkresiduals(mort_autob)
+Box.test(residuals(mort_autob), lag=24, type="Ljung-Box")
+
 # AIC/BIC comparison
-AIC(mort_fit1, mort_fit2, mort_fit3, mort_auto)
-BIC(mort_fit1, mort_fit2, mort_fit3, mort_auto)
+AIC(mort_fit1, mort_fit2, mort_fit3, mort_auto, mort_autob)
+BIC(mort_fit1, mort_fit2, mort_fit3, mort_auto, mort_autob)
 
 # Auto.arima chose same model as mort_fit_3. Based on parsiomy and results, looks good
 
@@ -290,30 +303,46 @@ coeftest(houses_auto) # more complex model, a lot of insignificant terms
 checkresiduals(houses_auto) # good
 Box.test(residuals(houses_auto), lag=24, type="Ljung-Box") # passes
 
+houses_autob <- auto.arima(log(houses_ts), ic="bic")
+houses_autob
+coeftest(houses_autob) # more complex model, a lot of insignificant terms
+checkresiduals(houses_autob) # good
+Box.test(residuals(houses_autob), lag=24, type="Ljung-Box") 
+
 # best box test
 
 # AIC/BIC comparison
 AIC(houses_fit1, houses_fit2, houses_fit3,
     houses_sarima1, houses_sarima2, houses_sarima3,
-    houses_sarima4, houses_sarima5, houses_auto)
+    houses_sarima4, houses_sarima5, houses_auto, houses_autob)
 BIC(houses_fit1, houses_fit2, houses_fit3,
     houses_sarima1, houses_sarima2, houses_sarima3,
-    houses_sarima4, houses_sarima5, houses_auto)
+    houses_sarima4, houses_sarima5, houses_auto, houses_autob)
 
 # houses_sarima_2 the best by all metrics
 
 
 ##### Forecasting #####
+detach("package:aTSA", unload=TRUE)
 
-# forecast models
+# auto.arima forecasts
 autoForecastFed <- forecast(fed_fit_auto, h=24)
 autoplot(autoForecastFed)
+
+autoForecastFedB <- forecast(fed_fit_autob, h=24)
+autoplot(autoForecastFedB)
 
 autoForecastMortgage <- forecast(mort_auto, h=24)
 autoplot(autoForecastMortgage)
 
+autoForecastMortgageB <- forecast(mort_autob, h=24)
+autoplot(autoForecastMortgageB)
+
 autoForecastHouses <- forecast(houses_auto, h=24)
 autoplot(autoForecastHouses)
+
+autoForecastHousesB <- forecast(houses_autob, h=24)
+autoplot(autoForecastHousesB)
 
 # federal funds forecasts
 fedForecast1 <- forecast(fed_fit1, h=24)
