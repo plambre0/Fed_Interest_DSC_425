@@ -145,6 +145,7 @@ fed_fit1
 coeftest(fed_fit1) # both terms significant
 checkresiduals(fed_fit1) # plots don't look good, clearly nonstationary
 Box.test(residuals(fed_fit1), lag=24, type="L") # confirms residuals are not white noise
+jarque.bera.test(residuals(fed_fit1))   #j-b test 
 
 # fed_fit1 NOT good
 
@@ -153,6 +154,8 @@ fed_fit2
 coeftest(fed_fit2) # all significant, MA slightly less
 checkresiduals(fed_fit2) # not good
 Box.test(residuals(fed_fit2), lag=24, type="L") # residuals not white noise
+jarque.bera.test(residuals(fed_fit2))   #j-b test 
+
 
 # fed_fit2 NOT good
 
@@ -161,6 +164,8 @@ fed_fit3
 coeftest(fed_fit3) # significant
 checkresiduals(fed_fit3) # not good
 Box.test(residuals(fed_fit3), lag=24, type="L") # residuals not white noise
+jarque.bera.test(residuals(fed_fit3))   #j-b test 
+
 
 # fed_fit3 NOT good
 
@@ -169,12 +174,15 @@ fed_fit_auto
 coeftest(fed_fit_auto) # significant
 checkresiduals(fed_fit_auto) # still not great
 Box.test(residuals(fed_fit_auto), lag=24, type="Ljung-Box") # residuals not white noise
+jarque.bera.test(residuals(fed_fit_auto))   #j-b test 
 
 fed_fit_autob <- auto.arima(fedfunds_ts, ic="bic")
 fed_fit_autob
 coeftest(fed_fit_autob) # significant
 checkresiduals(fed_fit_autob) # still not great
 Box.test(residuals(fed_fit_autob), lag=24, type="Ljung-Box")
+jarque.bera.test(residuals(fed_fit_autob))   #j-b test 
+
 # same as AIC
 
 # AIC/BIC comparison
@@ -190,6 +198,8 @@ mort_fit1
 coeftest(mort_fit1) # significant
 checkresiduals(mort_fit1) # pretty good
 Box.test(residuals(mort_fit1), lag=24, type="Ljung-Box") # white noise
+jarque.bera.test(residuals(mort_fit1))   #j-b test 
+
 
 # mort_fit1 is good
 
@@ -198,6 +208,8 @@ mort_fit2
 coeftest(mort_fit2) # AR3 less significant
 checkresiduals(mort_fit2) # decent
 Box.test(residuals(mort_fit2), lag=24, type="Ljung-Box") # white noise
+jarque.bera.test(residuals(mort_fit2))   #j-b test 
+
 
 # mort_fit2 is good
 
@@ -207,6 +219,8 @@ mort_fit3
 coeftest(mort_fit3) #significant
 checkresiduals(mort_fit3) # looks good
 Box.test(residuals(mort_fit3), lag=24, type="Ljung-Box") # white noise
+jarque.bera.test(residuals(mort_fit3))   #j-b test 
+
 
 # mort_fit3 is good
 
@@ -215,12 +229,16 @@ mort_auto
 coeftest(mort_auto) # also went with ARIMA(0,1,1)
 checkresiduals(mort_auto)
 Box.test(residuals(mort_auto), lag=24, type="Ljung-Box")
+jarque.bera.test(residuals(mort_auto))   #j-b test 
+
 
 mort_autob <- auto.arima(log(mortgage_ts), ic="bic")
 mort_autob
 coeftest(mort_autob) # also went with ARIMA(0,1,1)
 checkresiduals(mort_autob)
 Box.test(residuals(mort_autob), lag=24, type="Ljung-Box")
+jarque.bera.test(residuals(mort_autob))   #j-b test 
+
 
 # AIC/BIC comparison
 AIC(mort_fit1, mort_fit2, mort_fit3, mort_auto, mort_autob)
@@ -235,6 +253,7 @@ houses_fit1
 coeftest(houses_fit1) # significant
 checkresiduals(houses_fit1) # decent but misses seasonal structure
 Box.test(residuals(houses_fit1), lag=24, type="Ljung-Box") # borderline
+jarque.bera.test(residuals(houses_fit1))   #j-b test 
 
 # good, could be better
 
@@ -243,6 +262,7 @@ houses_fit2
 coeftest(houses_fit2) # significant
 checkresiduals(houses_fit2) # misses seasonal structure
 Box.test(residuals(houses_fit2), lag=24, type="Ljung-Box") # fails
+jarque.bera.test(residuals(houses_fit2))   #j-b test 
 
 # not white noise, NOT good
 
@@ -251,6 +271,7 @@ houses_fit3
 coeftest(houses_fit3) # check significance
 checkresiduals(houses_fit3) # still missing seasonal structure
 Box.test(residuals(houses_fit3), lag=24, type="Ljung-Box") # borderline
+jarque.bera.test(residuals(houses_fit3))   #j-b test 
 
 # could be better
 
@@ -261,6 +282,8 @@ houses_sarima1
 coeftest(houses_sarima1) # seasonal term not significant
 checkresiduals(houses_sarima1) # improved with seasonal term
 Box.test(residuals(houses_sarima1), lag=24, type="Ljung-Box")
+jarque.bera.test(residuals(houses_sarima1))   #j-b test 
+
 
 # still not great
 
@@ -270,6 +293,7 @@ houses_sarima2
 coeftest(houses_sarima2) # all terms significant
 checkresiduals(houses_sarima2) # good
 Box.test(residuals(houses_sarima2), lag=24, type="Ljung-Box")
+jarque.bera.test(residuals(houses_sarima2))   #j-b test 
 
 # best yet
 
@@ -279,6 +303,7 @@ houses_sarima3
 coeftest(houses_sarima3) # AR and MA both insignificant
 checkresiduals(houses_sarima3)
 Box.test(residuals(houses_sarima3), lag=24, type="Ljung-Box") # passes
+jarque.bera.test(residuals(houses_sarima3))   #j-b test 
 
 houses_sarima4 <- Arima(log(houses_ts), order=c(2,1,1),
                         seasonal=list(order=c(1,0,1), period=12))
@@ -286,6 +311,7 @@ houses_sarima4
 coeftest(houses_sarima4) # ma1 marginally significant
 checkresiduals(houses_sarima4) # good
 Box.test(residuals(houses_sarima4), lag=24, type="Ljung-Box") # passes
+jarque.bera.test(residuals(houses_sarima4))   #j-b test 
 
 # best residuals yet, less significant coeftest
 
@@ -295,6 +321,8 @@ houses_sarima5
 coeftest(houses_sarima5) # check significance
 checkresiduals(houses_sarima5) # good
 Box.test(residuals(houses_sarima5), lag=24, type="Ljung-Box") # passes
+jarque.bera.test(residuals(houses_sarima5))   #j-b test 
+
 
 # good
 
@@ -303,12 +331,15 @@ houses_auto
 coeftest(houses_auto) # more complex model, a lot of insignificant terms
 checkresiduals(houses_auto) # good
 Box.test(residuals(houses_auto), lag=24, type="Ljung-Box") # passes
+jarque.bera.test(residuals(houses_auto))   #j-b test 
+
 
 houses_autob <- auto.arima(log(houses_ts), ic="bic")
 houses_autob
 coeftest(houses_autob) # more complex model, a lot of insignificant terms
 checkresiduals(houses_autob) # good
 Box.test(residuals(houses_autob), lag=24, type="Ljung-Box") 
+jarque.bera.test(residuals(houses_autob))   #j-b test 
 
 # best box test
 
