@@ -102,53 +102,38 @@ fedfunds_acf / mortgage_acf / houses_acf
 
 
 #### pacf ####
+fedfunds_pacf = autoplot(Pacf(fedfunds_diff)) +
+  labs(title="Federal Funds Rate PACF", x="Lag", y="")
+# ARMA process
 
-# ff pacf
-pacf(as.numeric(fedfunds_diff))
-# strong spikes at lag1 and lag2
-# AR2 process
-# some more spikes later, but less significant
-# possible MA
+mortgage_pacf = autoplot(Pacf(mortgage_ld)) +
+  labs(title="Mortgage Rate PACF", x="Lag", y="")
+# probably MA
 
-# mortgage pacf
-pacf(as.numeric(mortgage_diff))
-# AR2 or AR3
-
-# houses pacf
-pacf(as.numeric(houses_log_diff))
-# AR1 or AR2
-# maybe some MA
-# signicant spikes at 12 and 24. seasonality?
-
-
-fedfunds_pacf = autoplot(pacf(as.numeric(fedfunds_diff), lag.max=24, plot=FALSE)) +
-  labs(title="Federal Funds Rate PACF", x="Lag", y="") +
-  theme_minimal()
-mortgage_pacf = autoplot(pacf(as.numeric(mortgage_ld), lag.max=24, plot=FALSE)) +
-  labs(title="Mortgage Rate PACF", x="Lag", y="") +
-  theme_minimal()
-houses_pacf = autoplot(pacf(as.numeric(houses_ld), lag.max=24, plot=FALSE)) +
-  labs(title="Housing Starts PACF", x="Lag", y="") +
-  theme_minimal()
+houses_pacf = autoplot(Pacf(houses_ld)) +
+  labs(title="Housing Starts PACF", x="Lag", y="")
+# probably MA
 
 fedfunds_pacf / mortgage_pacf / houses_pacf
 
 
+# show both together
+fedfunds_acf / fedfunds_pacf
+mortgage_acf / mortgage_pacf
+houses_acf / houses_pacf
+
+
+
 
 ##### eacf #####
-library(TSA)
-TSA::eacf(mortgage_ts)
-TSA::eacf(mortgage_diff)
-TSA::eacf(fedfunds_ts)
-TSA::eacf(fedfunds_diff)
-TSA::eacf(houses_ts)
-TSA::eacf(houses_log_diff)
+eacf(fedfunds_diff)
+# inconclusive, maybe ARIMA(3,1,3)
 
-
-eacf(as.numeric(fedfunds_diff))
-eacf(as.numeric(mortgage_ld))
-eacf(as.numeric(houses_ld))
-
+eacf(mortgage_ld)
+# (0,1,1) / (1,1,1) ?
+     
+eacf(houses_ld)
+# (1,1,2) / (0,1,3) ?
 
 
 ###### arima ######
