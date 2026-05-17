@@ -7,6 +7,7 @@ library(TSA)
 library(lmtest)
 library(forecast)
 library(fUnitRoots)
+library(tseries)
 
 fedfunds <- read.csv("FEDFUNDS.csv")
 mortgage <- read.csv("MORTGAGE30US.csv")
