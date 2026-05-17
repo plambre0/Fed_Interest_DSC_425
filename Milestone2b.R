@@ -322,6 +322,42 @@ BIC(houses_fit1, houses_fit2, houses_fit3,
 # houses_sarima_2 the best by all metrics
 
 
+##### Backtesting #####
+
+source("backtest.R")
+
+# federal funds
+backtest(fed_fit1, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
+backtest(fed_fit2, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
+backtest(fed_fit3, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
+backtest(fed_fit_auto, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
+backtest(fed_fit_autob, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
+
+# fit_fit1 has been result with backtesting, maybe struggling with seasonality/strange spikes
+
+# mortgage rates (log transformed)
+backtest(mort_fit1, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
+backtest(mort_fit2, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
+backtest(mort_fit3, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
+backtest(mort_auto, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
+backtest(mort_autob, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
+
+# mort_fit3 and autoarima models best - matches above
+
+# housing starts (log transformed)
+backtest(houses_fit1, log(houses_ts), h=1, orig=.8*length(houses_ts))
+backtest(houses_fit2, log(houses_ts), h=1, orig=.8*length(houses_ts))
+backtest(houses_fit3, log(houses_ts), h=1, orig=.8*length(houses_ts))
+backtest(houses_sarima1, log(houses_ts), h=1, orig=.8*length(houses_ts))
+backtest(houses_sarima2, log(houses_ts), h=1, orig=.8*length(houses_ts))
+backtest(houses_sarima3, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
+backtest(houses_sarima4, log(houses_ts), h=1, orig=.8*length(houses_ts))
+backtest(houses_sarima5, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
+backtest(houses_auto, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
+backtest(houses_autob, log(houses_ts), h=1, orig=.8*length(houses_ts))
+
+# model 2 best on MAE, competitive with RMSE, best overall
+
 ##### Forecasting #####
 detach("package:aTSA", unload=TRUE)
 
