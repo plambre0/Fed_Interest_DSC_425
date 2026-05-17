@@ -8,8 +8,8 @@ library(lmtest)
 library(forecast)
 library(fUnitRoots)
 
-fedfunds <- read.csv("FEDFUNDS-2.csv")
-mortgage <- read.csv("MORTGAGE30US-2.csv")
+fedfunds <- read.csv("FEDFUNDS.csv")
+mortgage <- read.csv("MORTGAGE30US.csv")
 houses <- read.csv("HOUST1F.csv")
 
 head(fedfunds)
@@ -139,128 +139,224 @@ eacf(houses_ld)
 ###### arima ######
 
 # federal funds
-fed_fit1 <- arima(fedfunds_ts, order=c(2,1,0))
-fed_fit1a = Arima(fedfunds_ts, order = c(2,1,0))
-fed_fit2 <- arima(fedfunds_ts, order=c(2,1,1))
-fed_fit2a <- Arima(fedfunds_ts, order=c(2,1,1))
-fed_fit3 <- arima(fedfunds_ts, order=c(0,1,1))
-fed_fit3a <- Arima(fedfunds_ts, order=c(0,1,1))
+fed_fit1 <- Arima(fedfunds_ts, order = c(2,1,0))
+fed_fit1
+coeftest(fed_fit1) # both terms significant
+checkresiduals(fed_fit1) # plots don't look good, clearly nonstationary
+Box.test(residuals(fed_fit1), lag=24, type="L") # confirms residuals are not white noise
+
+# fed_fit1 NOT good
+
+fed_fit2 <- Arima(fedfunds_ts, order=c(2,1,1))
+fed_fit2
+coeftest(fed_fit2) # all significant, MA slightly less
+checkresiduals(fed_fit2) # not good
+Box.test(residuals(fed_fit2), lag=24, type="L") # residuals not white noise
+
+# fed_fit2 NOT good
+
+fed_fit3 <- Arima(fedfunds_ts, order=c(0,1,1))
+fed_fit3
+coeftest(fed_fit3) # significant
+checkresiduals(fed_fit3) # not good
+Box.test(residuals(fed_fit3), lag=24, type="L") # residuals not white noise
+
+# fed_fit3 NOT good
+
 fed_fit_auto <- auto.arima(fedfunds_ts)
 fed_fit_auto
-
-# AIC comparison
+coeftest(fed_fit_auto) # significant
+checkresiduals(fed_fit_auto) # still not great
+Box.test(residuals(fed_fit_auto), lag=24, type="Ljung-Box") # residuals not white noise
+ 
+# AIC/BIC comparison
 AIC(fed_fit1, fed_fit2, fed_fit3, fed_fit_auto)
+BIC(fed_fit1, fed_fit2, fed_fit3, fed_fit_auto)
 
-# diagnostics
-checkresiduals(fed_fit_auto)
-Box.test(residuals(fed_fit_auto), lag=24, type="Ljung-Box")
-coeftest(fed_fit_auto)
+# auto.arima was the best fit by all metrics, but residuals did not reach white noise
+
 
 # mortgage rates
-mort_fit1 <- arima(log(mortgage_ts), order=c(2,1,0))
-mort_fit1a <- Arima(log(mortgage_ts), order=c(2,1,0))
-mort_fit2 <- arima(log(mortgage_ts), order=c(3,1,0))
-mort_fit2a <- Arima(log(mortgage_ts), order=c(3,1,0))
-mort_fit3 <- arima(log(mortgage_ts), order=c(0,1,1))
-mort_fit3a <- Arima(log(mortgage_ts), order=c(0,1,1))
+mort_fit1 <- Arima(log(mortgage_ts), order=c(2,1,0))
+mort_fit1
+coeftest(mort_fit1) # significant
+checkresiduals(mort_fit1) # pretty good
+Box.test(residuals(mort_fit1), lag=24, type="Ljung-Box") # white noise
+
+# mort_fit1 is good
+
+mort_fit2 <- Arima(log(mortgage_ts), order=c(3,1,0))
+mort_fit2
+coeftest(mort_fit2) # AR3 less significant
+checkresiduals(mort_fit2) # decent
+Box.test(residuals(mort_fit2), lag=24, type="Ljung-Box") # white noise
+
+# mort_fit2 is good
+
+
+mort_fit3 <- Arima(log(mortgage_ts), order=c(0,1,1)) 
+mort_fit3
+coeftest(mort_fit3) #significant
+checkresiduals(mort_fit3) # looks good
+Box.test(residuals(mort_fit3), lag=24, type="Ljung-Box") # white noise
+
+# mort_fit3 is good
+
 mort_auto <- auto.arima(log(mortgage_ts))
 mort_auto
-
-# AIC comparison
-AIC(mort_fit1, mort_fit2, mort_fit3, mort_auto)
-
-# diagnostics
+coeftest(mort_auto) # also went with ARIMA(0,1,1)
 checkresiduals(mort_auto)
 Box.test(residuals(mort_auto), lag=24, type="Ljung-Box")
-coeftest(mort_auto)
 
-# housing starts
-houses_fit1 <- arima(log(houses_ts), order=c(0,1,1))
-houses_fit1a <- Arima(log(houses_ts), order=c(0,1,1))
-houses_fit2 <- arima(log(houses_ts), order=c(1,1,0))
-houses_fit2a <- Arima(log(houses_ts), order=c(1,1,0))
-houses_fit3 <- arima(log(houses_ts), order=c(1,1,1))
-houses_fit3a <- Arima(log(houses_ts), order=c(1,1,1))
-houses_sarima1 <- arima(log(houses_ts), order=c(0,1,1),
+# AIC/BIC comparison
+AIC(mort_fit1, mort_fit2, mort_fit3, mort_auto)
+BIC(mort_fit1, mort_fit2, mort_fit3, mort_auto)
+
+# Auto.arima chose same model as mort_fit_3. Based on parsiomy and results, looks good
+
+
+# housing
+houses_fit1 <- Arima(log(houses_ts), order=c(0,1,1))
+houses_fit1
+coeftest(houses_fit1) # significant
+checkresiduals(houses_fit1) # decent but misses seasonal structure
+Box.test(residuals(houses_fit1), lag=24, type="Ljung-Box") # borderline
+
+# good, could be better
+
+houses_fit2 <- Arima(log(houses_ts), order=c(1,1,0))
+houses_fit2
+coeftest(houses_fit2) # significant
+checkresiduals(houses_fit2) # misses seasonal structure
+Box.test(residuals(houses_fit2), lag=24, type="Ljung-Box") # fails
+
+# not white noise, NOT good
+
+houses_fit3 <- Arima(log(houses_ts), order=c(1,1,1))
+houses_fit3
+coeftest(houses_fit3) # check significance
+checkresiduals(houses_fit3) # still missing seasonal structure
+Box.test(residuals(houses_fit3), lag=24, type="Ljung-Box") # borderline
+
+# could be better
+
+# add seasonal terms
+houses_sarima1 <- Arima(log(houses_ts), order=c(0,1,1),
                         seasonal=list(order=c(1,0,0), period=12))
-houses_sarima1a <- Arima(log(houses_ts), order=c(0,1,1),
-                        seasonal=list(order=c(1,0,0), period=12))
-houses_sarima2 <- arima(log(houses_ts), order=c(0,1,1),
+houses_sarima1
+coeftest(houses_sarima1) # seasonal term not significant
+checkresiduals(houses_sarima1) # improved with seasonal term
+Box.test(residuals(houses_sarima1), lag=24, type="Ljung-Box")
+
+# still not great
+
+houses_sarima2 <- Arima(log(houses_ts), order=c(0,1,1),
                         seasonal=list(order=c(1,0,1), period=12))
-houses_sarima2a <- Arima(log(houses_ts), order=c(0,1,1),
+houses_sarima2
+coeftest(houses_sarima2) # all terms significant
+checkresiduals(houses_sarima2) # good
+Box.test(residuals(houses_sarima2), lag=24, type="Ljung-Box")
+
+# best yet
+
+houses_sarima3 <- Arima(log(houses_ts), order=c(1,1,1),
                         seasonal=list(order=c(1,0,1), period=12))
-houses_sarima3 <- arima(log(houses_ts), order=c(1,1,1),
+houses_sarima3
+coeftest(houses_sarima3) # AR and MA both insignificant
+checkresiduals(houses_sarima3)
+Box.test(residuals(houses_sarima3), lag=24, type="Ljung-Box") # passes
+
+houses_sarima4 <- Arima(log(houses_ts), order=c(2,1,1),
                         seasonal=list(order=c(1,0,1), period=12))
-houses_sarima3a <- Arima(log(houses_ts), order=c(1,1,1),
+houses_sarima4
+coeftest(houses_sarima4) # ma1 marginally significant
+checkresiduals(houses_sarima4) # good
+Box.test(residuals(houses_sarima4), lag=24, type="Ljung-Box") # passes
+
+# best residuals yet, less significant coeftest
+
+houses_sarima5 <- Arima(log(houses_ts), order=c(1,1,2),
                         seasonal=list(order=c(1,0,1), period=12))
-houses_sarima4 <- arima(log(houses_ts), order=c(2,1,1),
-                        seasonal=list(order=c(1,0,1), period=12))
-houses_sarima4a <- Arima(log(houses_ts), order=c(2,1,1),
-                        seasonal=list(order=c(1,0,1), period=12))
-houses_sarima5 <- arima(log(houses_ts), order=c(1,1,2),
-                        seasonal=list(order=c(1,0,1), period=12))
-houses_sarima5a <- Arima(log(houses_ts), order=c(1,1,2),
-                        seasonal=list(order=c(1,0,1), period=12))
+houses_sarima5
+coeftest(houses_sarima5) # check significance
+checkresiduals(houses_sarima5) # good
+Box.test(residuals(houses_sarima5), lag=24, type="Ljung-Box") # passes
+
+# good
+
 houses_auto <- auto.arima(log(houses_ts))
 houses_auto
+coeftest(houses_auto) # more complex model, a lot of insignificant terms
+checkresiduals(houses_auto) # good
+Box.test(residuals(houses_auto), lag=24, type="Ljung-Box") # passes
 
-# AIC comparison
+# best box test
+
+# AIC/BIC comparison
 AIC(houses_fit1, houses_fit2, houses_fit3,
     houses_sarima1, houses_sarima2, houses_sarima3,
     houses_sarima4, houses_sarima5, houses_auto)
+BIC(houses_fit1, houses_fit2, houses_fit3,
+    houses_sarima1, houses_sarima2, houses_sarima3,
+    houses_sarima4, houses_sarima5, houses_auto)
 
-# Ljung-Box for all
-cat("\n--- Housing Starts Ljung-Box p-values ---\n")
-cat("ARIMA(0,1,1):", Box.test(residuals(houses_fit1), lag=24, type="Ljung-Box")$p.value, "\n")
-cat("ARIMA(1,1,0):", Box.test(residuals(houses_fit2), lag=24, type="Ljung-Box")$p.value, "\n")
-cat("ARIMA(1,1,1):", Box.test(residuals(houses_fit3), lag=24, type="Ljung-Box")$p.value, "\n")
-cat("ARIMA(0,1,1)(1,0,0)[12]:", Box.test(residuals(houses_sarima1), lag=24, type="Ljung-Box")$p.value, "\n")
-cat("ARIMA(0,1,1)(1,0,1)[12]:", Box.test(residuals(houses_sarima2), lag=24, type="Ljung-Box")$p.value, "\n")
-cat("ARIMA(1,1,1)(1,0,1)[12]:", Box.test(residuals(houses_sarima3), lag=24, type="Ljung-Box")$p.value, "\n")
-cat("ARIMA(2,1,1)(1,0,1)[12]:", Box.test(residuals(houses_sarima4), lag=24, type="Ljung-Box")$p.value, "\n")
-cat("ARIMA(1,1,2)(1,0,1)[12]:", Box.test(residuals(houses_sarima5), lag=24, type="Ljung-Box")$p.value, "\n")
-cat("Auto ARIMA:", Box.test(residuals(houses_auto), lag=24, type="Ljung-Box")$p.value, "\n")
+# houses_sarima_2 the best by all metrics
 
-# confirm sarima2 is preferred over sarima4
-coeftest(houses_sarima4)
 
-# best model diagnostics
-checkresiduals(houses_sarima2)
-Box.test(residuals(houses_sarima2), lag=24, type="Ljung-Box")
-coeftest(houses_sarima2)
+##### Forecasting #####
 
-#forecast models
-autoForecastFed = forecast(fed_fit_auto, h=24)
+# forecast models
+autoForecastFed <- forecast(fed_fit_auto, h=24)
 autoplot(autoForecastFed)
-autoForecastMortgage = forecast(mort_auto, h=24)
+
+autoForecastMortgage <- forecast(mort_auto, h=24)
 autoplot(autoForecastMortgage)
-autoForecastHouses = forecast(houses_auto, h=24)
+
+autoForecastHouses <- forecast(houses_auto, h=24)
 autoplot(autoForecastHouses)
-fedForecast1 = forecast(fed_fit1a, 24)
+
+# federal funds forecasts
+fedForecast1 <- forecast(fed_fit1, h=24)
 autoplot(fedForecast1)
-fedForecast2 = forecast(fed_fit2a, 24)
+
+fedForecast2 <- forecast(fed_fit2, h=24)
 autoplot(fedForecast2)
-fedForecast3 = forecast(fed_fit3a, 24)
+
+fedForecast3 <- forecast(fed_fit3, h=24)
 autoplot(fedForecast3)
-mortgageForecast1 = forecast(mort_fit1a, 24)
+
+# mortgage forecasts
+mortgageForecast1 <- forecast(mort_fit1, h=24)
 autoplot(mortgageForecast1)
-mortgageForecast2 = forecast(mort_fit2a, 24)
+
+mortgageForecast2 <- forecast(mort_fit2, h=24)
 autoplot(mortgageForecast2)
-mortgageForecast3 = forecast(mort_fit3a, 24)
+
+mortgageForecast3 <- forecast(mort_fit3, h=24)
 autoplot(mortgageForecast3)
-houseForecast1 = forecast(houses_fit1a, 24)
+
+# housing starts forecasts
+houseForecast1 <- forecast(houses_fit1, h=24)
 autoplot(houseForecast1)
-houseForecast2 = forecast(houses_fit2a, 24)
+
+houseForecast2 <- forecast(houses_fit2, h=24)
 autoplot(houseForecast2)
-houseForecast3 = forecast(houses_fit3a, 24)
+
+houseForecast3 <- forecast(houses_fit3, h=24)
 autoplot(houseForecast3)
-sHouseForecast1 = forecast(houses_sarima1a, 24)
+
+# housing starts sarima forecasts
+sHouseForecast1 <- forecast(houses_sarima1, h=24)
 autoplot(sHouseForecast1)
-sHouseForecast2 = forecast(houses_sarima2a, 24)
+
+sHouseForecast2 <- forecast(houses_sarima2, h=24)
 autoplot(sHouseForecast2)
-sHouseForecast3 = forecast(houses_sarima3a, 24)
+
+sHouseForecast3 <- forecast(houses_sarima3, h=24)
 autoplot(sHouseForecast3)
-sHouseForecast4 = forecast(houses_sarima4a, 24)
+
+sHouseForecast4 <- forecast(houses_sarima4, h=24)
 autoplot(sHouseForecast4)
-sHouseForecast5 = forecast(houses_sarima5a, 24)
+
+sHouseForecast5 <- forecast(houses_sarima5, h=24)
 autoplot(sHouseForecast5)
