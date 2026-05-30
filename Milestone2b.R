@@ -7,7 +7,9 @@ library(TSA)
 library(lmtest)
 library(forecast)
 library(fUnitRoots)
-library(tseries)
+library(tseries) 
+
+
 
 fedfunds <- read.csv("FEDFUNDS.csv")
 mortgage <- read.csv("MORTGAGE30US.csv")
@@ -18,21 +20,30 @@ head(mortgage)
 head(houses)
 
 # convert to date type
-mortgage$weeks = as.Date(mortgage$observation_date)
+fedfunds$date <- as.Date(fedfunds$observation_date)
+houses$date   <- as.Date(houses$observation_date)
+mortgage$date <- as.Date(mortgage$observation_date)
+
 
 # convert to monthly with mean
-mortgage = mortgage %>%
-  mutate(date = floor_date(weeks, "month")) %>%
+mortgage <- mortgage %>%
+  mutate(date = floor_date(date, "month")) %>%
   group_by(date) %>%
-  summarise(MORTGAGE30US = mean(MORTGAGE30US, na.rm = TRUE))
+  summarise(MORTGAGE30US = mean(MORTGAGE30US, na.rm = TRUE),.groups = "drop")
 
 head(mortgage)
+
+# datefiltering
+startDate <- as.Date("1976-01-01")
+endDate <- as.Date("2026-01-01")
+
+fedfunds_ts <- window(ts(fedfunds$FEDFUNDSstart = c(1976,1), frequency = 12), startDate, endDate)
+mortgage_ts <- window(ts(mortgage$MORTGAGE30US, start = c(1976,1), frequency = 12), startDate, endDate)
+houses_ts <- window(ts(houses$HOUST1F, start = c(1976,1), frequency = 12), startDate, endDate)
 
 
 #### Initial Plots, differencing, logs, and stationarity checks ####
 
-# ff ts object
-fedfunds_ts = ts(fedfunds$FEDFUNDS, start=c(1976,1), frequency=12)
 autoplot(fedfunds_ts) # not multiplicative, so not log, but mean in changing
 # take diff
 fedfunds_diff = diff(fedfunds_ts, differences = 1)
@@ -43,7 +54,6 @@ kpss.test(fedfunds_diff)
 
 
 # mortgage ts
-mortgage_ts = ts(mortgage$MORTGAGE30US, start=c(1976,1), frequency=12)
 autoplot(mortgage_ts)
 # take log diff
 mortgage_ld = diff(log(mortgage_ts), differences = 1)
@@ -53,7 +63,7 @@ adfTest(mortgage_ld, type="nc")
 kpss.test(mortgage_ld)
 
 
-houses_ts = ts(houses$HOUST1F, start=c(1976,1), frequency=12)
+# housing tf
 autoplot(houses_ts)
 # log diff
 houses_ld = diff(log(houses_ts), differences = 1)
