@@ -37,7 +37,7 @@ head(mortgage)
 startDate <- as.Date("1976-01-01")
 endDate <- as.Date("2026-01-01")
 
-fedfunds_ts <- window(ts(fedfunds$FEDFUNDSstart = c(1976,1), frequency = 12), startDate, endDate)
+fedfunds_ts <- window(ts(fedfunds$FEDFUNDS, start = c(1976,1), frequency = 12), startDate, endDate)
 mortgage_ts <- window(ts(mortgage$MORTGAGE30US, start = c(1976,1), frequency = 12), startDate, endDate)
 houses_ts <- window(ts(houses$HOUST1F, start = c(1976,1), frequency = 12), startDate, endDate)
 
