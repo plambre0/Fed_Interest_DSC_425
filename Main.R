@@ -34,12 +34,16 @@ mortgage <- mortgage %>%
 head(mortgage)
 
 # datefiltering
-startDate <- as.Date("1976-01-01")
+startDate <- as.Date("1986-01-01")
 endDate <- as.Date("2026-01-01")
 
-fedfunds_ts <- window(ts(fedfunds$FEDFUNDS, start = c(1976,1), frequency = 12), startDate, endDate)
-mortgage_ts <- window(ts(mortgage$MORTGAGE30US, start = c(1976,1), frequency = 12), startDate, endDate)
-houses_ts <- window(ts(houses$HOUST1F, start = c(1976,1), frequency = 12), startDate, endDate)
+fedfunds <- fedfunds %>% filter(date >= startDate, date <= endDate) %>% arrange(date)
+mortgage <- mortgage %>% filter(date >= startDate, date <= endDate) %>% arrange(date)
+houses <- houses %>% filter(date >= startDate, date <= endDate) %>% arrange(date)
+
+fedfunds_ts <- ts(fedfunds$FEDFUNDS, start = c(1986,1), frequency = 12)
+mortgage_ts <- ts(mortgage$MORTGAGE30US, start = c(1986,1), frequency = 12)
+houses_ts <- ts(houses$HOUST1F, start = c(1986,1), frequency = 12)
 
 
 #### Initial Plots, differencing, logs, and stationarity checks ####
@@ -67,8 +71,9 @@ houses_time = time(houses_ts)
 interventionYear = 2007
 interventionMonth = 3
 resesTime = interventionYear + (interventionMonth - 1) / 12
-recesDummy = ifelse(houses_time >= resesTime, 1, 0)
-rampDummy = ifelse(houses_time >= resesTime, seq_along(houses_time) - which(houses_time == resesTime) + 1, 0)
+interventionIndex = which.min(abs(houses_time - resesTime))   # robust to float error
+recesDummy = ifelse(seq_along(houses_time) >= interventionIndex, 1, 0)
+rampDummy = ifelse(seq_along(houses_time) >= interventionIndex, seq_along(houses_time) - interventionIndex + 1, 0)
 recessionPredictor = cbind(step = recesDummy, ramp = rampDummy)
 
 # housing tf
@@ -88,7 +93,6 @@ kpss.test(houses_ld)
 fedfunds_plot = autoplot(fedfunds_diff, color="firebrick") +
   labs(title="Differenced: Federal Funds Rate", y="", x="") +
   theme_minimal()
-fedfunds_plot
 mortgage_plot = autoplot(mortgage_ld, color="steelblue") +
   labs(title="Log-Differenced: Mortgage Rate", y="", x="") +
   theme_minimal()
@@ -150,7 +154,7 @@ eacf(fedfunds_diff)
 
 eacf(mortgage_ld)
 # (0,1,1) / (1,1,1) ?
-     
+
 eacf(houses_ld)
 # (1,1,2) / (0,1,3) ?
 
@@ -163,7 +167,7 @@ fed_fit1
 coeftest(fed_fit1) # both terms significant
 checkresiduals(fed_fit1) # plots don't look good, clearly nonstationary
 Box.test(residuals(fed_fit1), lag=24, type="L") # confirms residuals are not white noise
-jarque.bera.test(residuals(fed_fit1))   #j-b test 
+jarque.bera.test(residuals(fed_fit1))   #j-b test, not normal
 
 # fed_fit1 NOT good
 
@@ -171,11 +175,11 @@ fed_fit2 <- Arima(fedfunds_ts, order=c(2,1,1))
 fed_fit2
 coeftest(fed_fit2) # all significant, MA slightly less
 checkresiduals(fed_fit2) # not good
-Box.test(residuals(fed_fit2), lag=24, type="L") # residuals not white noise
-jarque.bera.test(residuals(fed_fit2))   #j-b test 
+Box.test(residuals(fed_fit2), lag=24, type="L") # residuals white noise
+jarque.bera.test(residuals(fed_fit2))   #j-b test fails badly
 
 
-# fed_fit2 NOT good
+# fed_fit2 better but not normal
 
 fed_fit3 <- Arima(fedfunds_ts, order=c(0,1,1))
 fed_fit3
@@ -207,8 +211,7 @@ jarque.bera.test(residuals(fed_fit_autob))   #j-b test
 AIC(fed_fit1, fed_fit2, fed_fit3, fed_fit_auto, fed_fit_autob)
 BIC(fed_fit1, fed_fit2, fed_fit3, fed_fit_auto, fed_fit_autob)
 
-# auto.arima was the best fit by all metrics, but residuals did not reach white noise
-
+# fedfit2 white noise, but not normal but still best
 
 # mortgage rates
 mort_fit1 <- Arima(log(mortgage_ts), order=c(2,1,0))
@@ -296,7 +299,7 @@ jarque.bera.test(residuals(houses_fit3))   #j-b test
 # add seasonal terms
 houses_sarima1 <- Arima(log(houses_ts), order=c(0,1,1),
                         seasonal=list(order=c(1,0,0), period=12),
-                       xreg=recessionPredictor)
+                        xreg=recessionPredictor)
 houses_sarima1
 coeftest(houses_sarima1) # seasonal term not significant
 checkresiduals(houses_sarima1) # improved with seasonal term
@@ -308,7 +311,7 @@ jarque.bera.test(residuals(houses_sarima1))   #j-b test
 
 houses_sarima2 <- Arima(log(houses_ts), order=c(0,1,1),
                         seasonal=list(order=c(1,0,1), period=12),
-                       xreg=recessionPredictor)
+                        xreg=recessionPredictor)
 houses_sarima2
 coeftest(houses_sarima2) # all terms significant
 checkresiduals(houses_sarima2) # good
@@ -317,9 +320,13 @@ jarque.bera.test(residuals(houses_sarima2))   #j-b test
 
 # best yet
 
-houses_sarima3 <- Arima(log(houses_ts), order=c(1,1,1),
-                        seasonal=list(order=c(1,0,1), period=12),
-                       xreg=recessionPredictor)
+recessionPredictor_scaled <- recessionPredictor
+recessionPredictor_scaled[, "ramp"] <- recessionPredictor[, "ramp"] / 227
+
+houses_sarima3 <- Arima(log(houses_ts), order = c(1,1,1),
+                        seasonal = list(order = c(1,0,1), period = 12),
+                        xreg = recessionPredictor_scaled,
+                        method = "CSS")
 houses_sarima3
 coeftest(houses_sarima3) # AR and MA both insignificant
 checkresiduals(houses_sarima3)
@@ -328,7 +335,7 @@ jarque.bera.test(residuals(houses_sarima3))   #j-b test
 
 houses_sarima4 <- Arima(log(houses_ts), order=c(2,1,1),
                         seasonal=list(order=c(1,0,1), period=12),
-                      xreg=recessionPredictor)
+                        xreg=recessionPredictor)
 houses_sarima4
 coeftest(houses_sarima4) # ma1 marginally significant
 checkresiduals(houses_sarima4) # good
@@ -339,7 +346,7 @@ jarque.bera.test(residuals(houses_sarima4))   #j-b test
 
 houses_sarima5 <- Arima(log(houses_ts), order=c(1,1,2),
                         seasonal=list(order=c(1,0,1), period=12),
-                       xreg=recessionPredictor)
+                        xreg=recessionPredictor)
 houses_sarima5
 coeftest(houses_sarima5) # check significance
 checkresiduals(houses_sarima5) # good
@@ -368,10 +375,11 @@ jarque.bera.test(residuals(houses_autob))   #j-b test
 
 # AIC/BIC comparison
 AIC(houses_fit1, houses_fit2, houses_fit3,
-    houses_sarima1, houses_sarima2, houses_sarima3,
+    houses_sarima1, houses_sarima2,
     houses_sarima4, houses_sarima5, houses_auto, houses_autob)
+
 BIC(houses_fit1, houses_fit2, houses_fit3,
-    houses_sarima1, houses_sarima2, houses_sarima3,
+    houses_sarima1, houses_sarima2,
     houses_sarima4, houses_sarima5, houses_auto, houses_autob)
 
 # houses_sarima_2 the best by all metrics
@@ -385,16 +393,16 @@ source("backtest.R")
 backtest(fed_fit1, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
 backtest(fed_fit2, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
 backtest(fed_fit3, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
-backtest(fed_fit_auto, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
-backtest(fed_fit_autob, fedfunds_ts, h=1, orig=.8*length(fedfunds_ts))
+#backtest(fed_fit_auto, fedfunds_ts, h=1, orig=floor(.8*length(fedfunds_ts))) # doesn't work, over parameterized
+backtest(fed_fit_autob, fedfunds_ts, h=1, orig=floor(.8*length(fedfunds_ts)))
 
-# fit_fit1 has been result with backtesting, maybe struggling with seasonality/strange spikes
+# fed_fit2 and autob best results, choose fed_fit2 as best model
 
 # mortgage rates (log transformed)
 backtest(mort_fit1, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
 backtest(mort_fit2, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
 backtest(mort_fit3, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
-backtest(mort_auto, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
+backtest(mort_auto, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts)) 
 backtest(mort_autob, log(mortgage_ts), h=1, orig=.8*length(mortgage_ts))
 
 # mort_fit3 and autoarima models best - matches above
@@ -405,78 +413,67 @@ backtest(houses_fit2, log(houses_ts), h=1, orig=.8*length(houses_ts))
 backtest(houses_fit3, log(houses_ts), h=1, orig=.8*length(houses_ts))
 backtest(houses_sarima1, log(houses_ts), h=1, orig=.8*length(houses_ts))
 backtest(houses_sarima2, log(houses_ts), h=1, orig=.8*length(houses_ts))
-backtest(houses_sarima3, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
+#backtest(houses_sarima3, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
 backtest(houses_sarima4, log(houses_ts), h=1, orig=.8*length(houses_ts))
-backtest(houses_sarima5, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
-backtest(houses_auto, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
+#backtest(houses_sarima5, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
+#backtest(houses_auto, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
 backtest(houses_autob, log(houses_ts), h=1, orig=.8*length(houses_ts))
 
-# model 2 best on MAE, competitive with RMSE, best overall
+# sarima model 2 best on MAE, competitive with RMSE, best overall
 
 ##### Forecasting #####
-detach("package:aTSA", unload=TRUE)
 
-# auto.arima forecasts
-autoForecastFed <- forecast(fed_fit_auto, h=24)
-autoplot(autoForecastFed)
 
-autoForecastFedB <- forecast(fed_fit_autob, h=24)
-autoplot(autoForecastFedB)
+H <- 24
 
-autoForecastMortgage <- forecast(mort_auto, h=24)
+## future regressors for the housing models
+last_ramp <- tail(recessionPredictor[, "ramp"], 1)
+future_xreg <- cbind(step = rep(1, H),
+                     ramp = (last_ramp + 1):(last_ramp + H))
+
+# scaled version for houses_sarima3 (fit with ramp / 227)
+future_xreg_scaled <- cbind(step = rep(1, H),
+                            ramp = ((last_ramp + 1):(last_ramp + H)) / 227)
+
+## logs back to original uits
+nolog_forecast <- function(forecast) 
+  {forecast$mean <- exp(forecast$mean)
+  forecast$lower <- exp(forecast$lower)
+  forecast$upper <- exp(forecast$upper)
+  forecast$x <- exp(forecast$x)
+  if (!is.null(forecast$fitted)) forecast$fitted <- exp(forecast$fitted)
+  forecast}
+
+## Federal funds (no transform, no xreg)
+autoForecastFed  <- forecast(fed_fit_auto,  h = H); autoplot(autoForecastFed)
+autoForecastFedB <- forecast(fed_fit_autob, h = H); autoplot(autoForecastFedB)
+
+fedForecast1 <- forecast(fed_fit1, h = H); autoplot(fedForecast1)
+fedForecast2 <- forecast(fed_fit2, h = H); autoplot(fedForecast2)   # chosen model
+fedForecast3 <- forecast(fed_fit3, h = H); autoplot(fedForecast3)
+
+## Mortgage
+autoForecastMortgage  <- nolog_forecast(forecast(mort_auto,  h = H))
 autoplot(autoForecastMortgage)
-
-autoForecastMortgageB <- forecast(mort_autob, h=24)
+autoForecastMortgageB <- nolog_forecast(forecast(mort_autob, h = H))
 autoplot(autoForecastMortgageB)
 
-autoForecastHouses <- forecast(houses_auto, h=24)
-autoplot(autoForecastHouses)
+mortgageForecast1 <- nolog_forecast(forecast(mort_fit1, h = H)); autoplot(mortgageForecast1)
+mortgageForecast2 <- nolog_forecast(forecast(mort_fit2, h = H)); autoplot(mortgageForecast2)
+mortgageForecast3 <- nolog_forecast(forecast(mort_fit3, h = H)); autoplot(mortgageForecast3)  # chosen
 
-autoForecastHousesB <- forecast(houses_autob, h=24)
+## Housing
+autoForecastHouses  <- nolog_forecast(forecast(houses_auto,  xreg = future_xreg))
+autoplot(autoForecastHouses)
+autoForecastHousesB <- nolog_forecast(forecast(houses_autob, xreg = future_xreg))
 autoplot(autoForecastHousesB)
 
-# federal funds forecasts
-fedForecast1 <- forecast(fed_fit1, h=24)
-autoplot(fedForecast1)
+houseForecast1 <- nolog_forecast(forecast(houses_fit1, xreg = future_xreg)); autoplot(houseForecast1)
+houseForecast2 <- nolog_forecast(forecast(houses_fit2, xreg = future_xreg)); autoplot(houseForecast2)
+houseForecast3 <- nolog_forecast(forecast(houses_fit3, xreg = future_xreg)); autoplot(houseForecast3)
 
-fedForecast2 <- forecast(fed_fit2, h=24)
-autoplot(fedForecast2)
-
-fedForecast3 <- forecast(fed_fit3, h=24)
-autoplot(fedForecast3)
-
-# mortgage forecasts
-mortgageForecast1 <- forecast(mort_fit1, h=24)
-autoplot(mortgageForecast1)
-
-mortgageForecast2 <- forecast(mort_fit2, h=24)
-autoplot(mortgageForecast2)
-
-mortgageForecast3 <- forecast(mort_fit3, h=24)
-autoplot(mortgageForecast3)
-
-# housing starts forecasts
-houseForecast1 <- forecast(houses_fit1, h=24)
-autoplot(houseForecast1)
-
-houseForecast2 <- forecast(houses_fit2, h=24)
-autoplot(houseForecast2)
-
-houseForecast3 <- forecast(houses_fit3, h=24)
-autoplot(houseForecast3)
-
-# housing starts sarima forecasts
-sHouseForecast1 <- forecast(houses_sarima1, h=24)
-autoplot(sHouseForecast1)
-
-sHouseForecast2 <- forecast(houses_sarima2, h=24)
-autoplot(sHouseForecast2)
-
-sHouseForecast3 <- forecast(houses_sarima3, h=24)
-autoplot(sHouseForecast3)
-
-sHouseForecast4 <- forecast(houses_sarima4, h=24)
-autoplot(sHouseForecast4)
-
-sHouseForecast5 <- forecast(houses_sarima5, h=24)
-autoplot(sHouseForecast5)
+sHouseForecast1 <- nolog_forecast(forecast(houses_sarima1, xreg = future_xreg)); autoplot(sHouseForecast1)
+sHouseForecast2 <- nolog_forecast(forecast(houses_sarima2, xreg = future_xreg)); autoplot(sHouseForecast2)  # chosen
+sHouseForecast3 <- nolog_forecast(forecast(houses_sarima3, xreg = future_xreg_scaled)); autoplot(sHouseForecast3)
+sHouseForecast4 <- nolog_forecast(forecast(houses_sarima4, xreg = future_xreg)); autoplot(sHouseForecast4)
+sHouseForecast5 <- nolog_forecast(forecast(houses_sarima5, xreg = future_xreg)); autoplot(sHouseForecast5)
