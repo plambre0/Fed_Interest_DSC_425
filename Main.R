@@ -62,6 +62,14 @@ autoplot(mortgage_ld)
 adfTest(mortgage_ld, type="nc")
 kpss.test(mortgage_ld)
 
+#intervention for the 2008 housing crash
+houses_time = time(houses_ts)
+interventionYear = 2007
+interventionMonth = 3
+resesTime = interventionYear + (interventionMonth - 1) / 12
+recesDummy = ifelse(houses_time >= resesTime, 1, 0)
+rampDummy = ifelse(houses_time >= resesTime, seq_along(houses_time) - which(houses_time == resesTime) + 1, 0)
+recessionPredictor = cbind(step = recesDummy, ramp = rampDummy)
 
 # housing tf
 autoplot(houses_ts)
@@ -258,7 +266,7 @@ BIC(mort_fit1, mort_fit2, mort_fit3, mort_auto, mort_autob)
 
 
 # housing
-houses_fit1 <- Arima(log(houses_ts), order=c(0,1,1))
+houses_fit1 <- Arima(log(houses_ts), order=c(0,1,1), xreg=recessionPredictor)
 houses_fit1
 coeftest(houses_fit1) # significant
 checkresiduals(houses_fit1) # decent but misses seasonal structure
@@ -267,7 +275,7 @@ jarque.bera.test(residuals(houses_fit1))   #j-b test
 
 # good, could be better
 
-houses_fit2 <- Arima(log(houses_ts), order=c(1,1,0))
+houses_fit2 <- Arima(log(houses_ts), order=c(1,1,0), xreg=recessionPredictor)
 houses_fit2
 coeftest(houses_fit2) # significant
 checkresiduals(houses_fit2) # misses seasonal structure
@@ -276,7 +284,7 @@ jarque.bera.test(residuals(houses_fit2))   #j-b test
 
 # not white noise, NOT good
 
-houses_fit3 <- Arima(log(houses_ts), order=c(1,1,1))
+houses_fit3 <- Arima(log(houses_ts), order=c(1,1,1), xreg=recessionPredictor)
 houses_fit3
 coeftest(houses_fit3) # check significance
 checkresiduals(houses_fit3) # still missing seasonal structure
@@ -287,7 +295,8 @@ jarque.bera.test(residuals(houses_fit3))   #j-b test
 
 # add seasonal terms
 houses_sarima1 <- Arima(log(houses_ts), order=c(0,1,1),
-                        seasonal=list(order=c(1,0,0), period=12))
+                        seasonal=list(order=c(1,0,0), period=12),
+                       xreg=recessionPredictor)
 houses_sarima1
 coeftest(houses_sarima1) # seasonal term not significant
 checkresiduals(houses_sarima1) # improved with seasonal term
@@ -298,7 +307,8 @@ jarque.bera.test(residuals(houses_sarima1))   #j-b test
 # still not great
 
 houses_sarima2 <- Arima(log(houses_ts), order=c(0,1,1),
-                        seasonal=list(order=c(1,0,1), period=12))
+                        seasonal=list(order=c(1,0,1), period=12),
+                       xreg=recessionPredictor)
 houses_sarima2
 coeftest(houses_sarima2) # all terms significant
 checkresiduals(houses_sarima2) # good
@@ -308,7 +318,8 @@ jarque.bera.test(residuals(houses_sarima2))   #j-b test
 # best yet
 
 houses_sarima3 <- Arima(log(houses_ts), order=c(1,1,1),
-                        seasonal=list(order=c(1,0,1), period=12))
+                        seasonal=list(order=c(1,0,1), period=12),
+                       xreg=recessionPredictor)
 houses_sarima3
 coeftest(houses_sarima3) # AR and MA both insignificant
 checkresiduals(houses_sarima3)
@@ -316,7 +327,8 @@ Box.test(residuals(houses_sarima3), lag=24, type="Ljung-Box") # passes
 jarque.bera.test(residuals(houses_sarima3))   #j-b test 
 
 houses_sarima4 <- Arima(log(houses_ts), order=c(2,1,1),
-                        seasonal=list(order=c(1,0,1), period=12))
+                        seasonal=list(order=c(1,0,1), period=12),
+                      xreg=recessionPredictor)
 houses_sarima4
 coeftest(houses_sarima4) # ma1 marginally significant
 checkresiduals(houses_sarima4) # good
@@ -326,7 +338,8 @@ jarque.bera.test(residuals(houses_sarima4))   #j-b test
 # best residuals yet, less significant coeftest
 
 houses_sarima5 <- Arima(log(houses_ts), order=c(1,1,2),
-                        seasonal=list(order=c(1,0,1), period=12))
+                        seasonal=list(order=c(1,0,1), period=12),
+                       xreg=recessionPredictor)
 houses_sarima5
 coeftest(houses_sarima5) # check significance
 checkresiduals(houses_sarima5) # good
@@ -336,7 +349,7 @@ jarque.bera.test(residuals(houses_sarima5))   #j-b test
 
 # good
 
-houses_auto <- auto.arima(log(houses_ts))
+houses_auto <- auto.arima(log(houses_ts), xreg=recessionPredictor)
 houses_auto
 coeftest(houses_auto) # more complex model, a lot of insignificant terms
 checkresiduals(houses_auto) # good
@@ -344,7 +357,7 @@ Box.test(residuals(houses_auto), lag=24, type="Ljung-Box") # passes
 jarque.bera.test(residuals(houses_auto))   #j-b test 
 
 
-houses_autob <- auto.arima(log(houses_ts), ic="bic")
+houses_autob <- auto.arima(log(houses_ts), ic="bic", xreg=recessionPredictor)
 houses_autob
 coeftest(houses_autob) # more complex model, a lot of insignificant terms
 checkresiduals(houses_autob) # good
