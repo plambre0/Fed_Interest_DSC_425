@@ -7,7 +7,9 @@ library(TSA)
 library(lmtest)
 library(forecast)
 library(fUnitRoots)
-library(tseries) 
+library(tseries)
+library(dynlm)
+library(vars)
 
 
 
@@ -44,6 +46,9 @@ houses <- houses %>% filter(date >= startDate, date <= endDate) %>% arrange(date
 fedfunds_ts <- ts(fedfunds$FEDFUNDS, start = c(1986,1), frequency = 12)
 mortgage_ts <- ts(mortgage$MORTGAGE30US, start = c(1986,1), frequency = 12)
 houses_ts <- ts(houses$HOUST1F, start = c(1986,1), frequency = 12)
+
+fedfunds_ts <- window(fedfunds_ts, end = c(2025, 12))
+houses_ts <- window(houses_ts, end = c(2025, 12))
 
 
 #### Initial Plots, differencing, logs, and stationarity checks ####
@@ -445,7 +450,7 @@ nolog_forecast <- function(forecast)
   forecast}
 
 ## Federal funds (no transform, no xreg)
-autoForecastFed  <- forecast(fed_fit_auto,  h = H); autoplot(autoForecastFed)
+autoForecastFed <- forecast(fed_fit_auto, h = H); autoplot(autoForecastFed)
 autoForecastFedB <- forecast(fed_fit_autob, h = H); autoplot(autoForecastFedB)
 
 fedForecast1 <- forecast(fed_fit1, h = H); autoplot(fedForecast1)
@@ -453,7 +458,7 @@ fedForecast2 <- forecast(fed_fit2, h = H); autoplot(fedForecast2)   # chosen mod
 fedForecast3 <- forecast(fed_fit3, h = H); autoplot(fedForecast3)
 
 ## Mortgage
-autoForecastMortgage  <- nolog_forecast(forecast(mort_auto,  h = H))
+autoForecastMortgage <- nolog_forecast(forecast(mort_auto,  h = H))
 autoplot(autoForecastMortgage)
 autoForecastMortgageB <- nolog_forecast(forecast(mort_autob, h = H))
 autoplot(autoForecastMortgageB)
@@ -465,6 +470,7 @@ mortgageForecast3 <- nolog_forecast(forecast(mort_fit3, h = H)); autoplot(mortga
 ## Housing
 autoForecastHouses  <- nolog_forecast(forecast(houses_auto,  xreg = future_xreg))
 autoplot(autoForecastHouses)
+
 autoForecastHousesB <- nolog_forecast(forecast(houses_autob, xreg = future_xreg))
 autoplot(autoForecastHousesB)
 
@@ -477,3 +483,149 @@ sHouseForecast2 <- nolog_forecast(forecast(houses_sarima2, xreg = future_xreg));
 sHouseForecast3 <- nolog_forecast(forecast(houses_sarima3, xreg = future_xreg_scaled)); autoplot(sHouseForecast3)
 sHouseForecast4 <- nolog_forecast(forecast(houses_sarima4, xreg = future_xreg)); autoplot(sHouseForecast4)
 sHouseForecast5 <- nolog_forecast(forecast(houses_sarima5, xreg = future_xreg)); autoplot(sHouseForecast5)
+
+# prewhitening/ccf
+
+# fed to mortgage
+
+# raw ccf
+ccf((fedfunds_ts),(log(mortgage_ts)))
+# all lags significant, highly autocorr
+
+# prewhiten - using fed_fit_autob because it has no MA terms
+prewhiten(fedfunds_ts, log(mortgage_ts), x.model = fed_fit_autob)
+
+# peak lag
+k <- 1
+n <- length(fedfunds_ts)
+
+# output
+y_align <- subset(fedfunds_ts, start = k+1)
+# input
+x_align <- subset(log(mortgage_ts), end = n-k)
+
+# check fit
+ccf_fit1 <- auto.arima(y_align, xreg = x_align)
+coeftest(ccf_fit1)
+sqrt(mean(residuals(ccf_fit1)^2))
+Acf(residuals(ccf_fit1))
+Box.test(residuals(ccf_fit1), lag = 24, type = "L")
+
+# drop insignificant seasonal terms
+ccf_fit2 <- Arima(y_align, order = c(2,1,1), xreg = x_align)
+# all significant
+coeftest(ccf_fit2)
+# lower AIC
+AIC(ccf_fit1, ccf_fit2)
+
+# compare backtesting with and without xreg
+ccf_base <- Arima(y_align, order = c(2,1,1))
+backtest(ccf_base, y_align, orig=(0.8 * length(y_align)), h = 1)
+backtest(ccf_fit2, y_align, orig=(0.8 * length(y_align)), h = 1, xre = x_align)
+
+# backtesting comparable, if not a little worse with xreg. There is a lead relationship
+# but it is not strong enough to help forecasting
+
+# fed to housing starts:
+
+# raw CCF
+ccf(fedfunds_ts, log(houses_ts))
+prewhiten(fedfunds_ts, log(houses_ts), x.model = fed_fit_autob)
+
+# negative lag = fed funds lead housing
+k <- 2
+n <- length(houses_ts)
+y_align2 <- subset(log(houses_ts), start = k + 1)
+x_align2 <- subset(fedfunds_ts, end = n - k)
+
+# transfer model + diagnostics
+ccf_fit_FH1 <- auto.arima(y_align2, xreg = x_align2)
+ccf_fit_FH1
+coeftest(ccf_fit_FH1)
+Box.test(residuals(ccf_fit_FH1), lag = 24, type = "L")
+
+# not signifiant xreg
+
+# mortgage to housing starts
+fedfunds_ts <- window(fedfunds_ts, end = c(2025, 12))
+houses_ts <- window(houses_ts, end = c(2025, 12))
+
+ccf(log(mortgage_ts), log(houses_ts))
+prewhiten(log(mortgage_ts), log(houses_ts), x.model = mort_fit1)
+
+k <- 1
+n <- length(houses_ts)
+y_align3 <- subset(log(mortgage_ts), start = k + 1)
+x_align3 <- subset(log(houses_ts), end = n - k)
+
+ccf_fit_HM <- auto.arima(y_align3, xreg = x_align3)
+coeftest(ccf_fit_HM)
+
+base_hm <- Arima(y_align3, order = c(0,1,1))
+backtest(base_hm,    y_align3, orig = (0.8 * length(y_align3)), h = 1)
+backtest(ccf_fit_HM, y_align3, orig = (0.8 * length(y_align3)), h = 1, xre = x_align3)
+
+# doesn't help, not a good regression
+# Fed to mortgage: significant lead, but reversed (mortgage leads fed) and no out-of-sample value
+# Fed to housing: no significant direct link
+# Mortgage to housing: no clean significant lead
+# Housing to mortgage: significant in-sample but worsens forecasting
+
+
+#  VAR:
+
+v <- cbind(fed = fedfunds_diff, mortgage = mortgage_ld, housing = houses_ld)
+
+autoplot(v, facets = T)
+
+# auto- and cross-correlation exploration
+ccf(fedfunds_diff, mortgage_ld)
+ccf(fedfunds_diff, houses_ld)
+ccf(mortgage_ld, houses_ld)
+
+# Order selection
+s <- VARselect(v, lag.max = 12, type = "const")
+s$selection
+
+# lowest p=1
+fit1 <- VAR(v, p = 1, type = "const")
+serial.test(fit1, lags.pt = 24, type = "PT.asymptotic")
+# doesnt pass
+
+# p=2
+fit2 <- VAR(v, p = 2, type = "const")
+serial.test(fit2, lags.pt = 24, type = "PT.asymptotic")
+# still doesn't pass
+
+# highest p=3
+fit3 <- VAR(v, p = 3, type = "const")
+serial.test(fit3, lags.pt = 24, type = "PT.asymptotic")
+# barely passes
+
+# p=4
+fit4 <- VAR(v, p = 4, type = "const")
+serial.test(fit4, lags.pt = 24, type = "PT.asymptotic")
+
+# actually passes
+summary(fit4)
+coeftest(fit4)
+autoplot(forecast(fit4, h = 24))
+
+############################################################
+# Train/test split + overlay observed test values (his validation block)
+############################################################
+n <- nrow(v)
+n_test <- 24
+
+train <- window(v, end = time(v)[n - n_test])
+test<- window(v, start = time(v)[n - n_test + 1])
+
+fit_train <- VAR(train, p = 4, type = "const")
+f <- forecast(fit_train, h = n_test)
+
+# Granger - does each series help predict the others?
+causality(fit4, cause = "fed")$Granger
+causality(fit4, cause = "mortgage")$Granger
+causality(fit4, cause = "housing")$Granger
+
+plot(irf(fit4, impulse = "mortgage", response = c("fed", "housing"), n.ahead = 24, boot = TRUE))
