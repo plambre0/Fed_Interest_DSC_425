@@ -53,6 +53,17 @@ houses_ts <- window(houses_ts, end = c(2025, 12))
 
 #### Initial Plots, differencing, logs, and stationarity checks ####
 
+plot1 <- autoplot(fedfunds_ts, color="firebrick") +
+  labs(title="Federal Funds Rate", y="", x="") +
+  theme_minimal()
+plot2 <- autoplot(mortgage_ts, color="steelblue") +
+  labs(title="Mortgage Rate", y="", x="") +
+  theme_minimal()
+plot3 = autoplot(houses_ts, color="darkgreen") +
+  labs(title="Housing Starts", y="", x="") +
+  theme_minimal()
+plot1 / plot2 / plot3
+
 autoplot(fedfunds_ts) # not multiplicative, so not log, but mean in changing
 # take diff
 fedfunds_diff = diff(fedfunds_ts, differences = 1)
@@ -315,13 +326,21 @@ jarque.bera.test(residuals(houses_sarima1))   #j-b test
 # still not great
 
 houses_sarima2 <- Arima(log(houses_ts), order=c(0,1,1),
-                        seasonal=list(order=c(1,0,1), period=12),
-                        xreg=recessionPredictor)
+                         seasonal=list(order=c(1,0,1), period=12))
 houses_sarima2
 coeftest(houses_sarima2) # all terms significant
 checkresiduals(houses_sarima2) # good
 Box.test(residuals(houses_sarima2), lag=24, type="Ljung-Box")
-jarque.bera.test(residuals(houses_sarima2))   #j-b test 
+jarque.bera.test(residuals(houses_sarima2)) 
+
+houses_sarima2b <- Arima(log(houses_ts), order=c(0,1,1),
+                        seasonal=list(order=c(1,0,1), period=12),
+                        xreg=recessionPredictor)
+houses_sarima2b
+coeftest(houses_sarima2b) # all terms significant
+checkresiduals(houses_sarima2b) # good
+Box.test(residuals(houses_sarima2b), lag=24, type="Ljung-Box")
+jarque.bera.test(residuals(houses_sarima2b))   #j-b test 
 
 # best yet
 
@@ -505,25 +524,31 @@ y_align <- subset(fedfunds_ts, start = k+1)
 x_align <- subset(log(mortgage_ts), end = n-k)
 
 # check fit
-ccf_fit1 <- auto.arima(y_align, xreg = x_align)
-coeftest(ccf_fit1)
-sqrt(mean(residuals(ccf_fit1)^2))
-Acf(residuals(ccf_fit1))
-Box.test(residuals(ccf_fit1), lag = 24, type = "L")
+ccf_fit_FM <- auto.arima(y_align, xreg = x_align)
+coeftest(ccf_fit_FM)
+# seasonal terms not significant
+sqrt(mean(residuals(ccf_fit_FM)^2))
+Acf(residuals(ccf_fit_FM))
+# close to white noise, one significant lag
+Box.test(residuals(ccf_fit_FM), lag = 24, type = "L")
 
 # drop insignificant seasonal terms
-ccf_fit2 <- Arima(y_align, order = c(2,1,1), xreg = x_align)
+ccf_fit_FM2 <- Arima(y_align, order = c(2,1,1), xreg = x_align)
+ccf_fit_FM2
 # all significant
-coeftest(ccf_fit2)
-# lower AIC
-AIC(ccf_fit1, ccf_fit2)
+coeftest(ccf_fit_FM2)
+sqrt(mean(residuals(ccf_fit_FM2)^2))
+Acf(residuals(ccf_fit_FM2))
+Box.test(residuals(ccf_fit_FM2), lag = 24, type = "L")
+# slightly lower AIC
+AIC(ccf_fit_FM, ccf_fit_FM2)
 
 # compare backtesting with and without xreg
-ccf_base <- Arima(y_align, order = c(2,1,1))
-backtest(ccf_base, y_align, orig=(0.8 * length(y_align)), h = 1)
-backtest(ccf_fit2, y_align, orig=(0.8 * length(y_align)), h = 1, xre = x_align)
+ccf_base_FM <- Arima(y_align, order = c(2,1,1))
+backtest(ccf_base_FM, y_align, orig=(0.8 * length(y_align)), h = 1)
+backtest(ccf_fit_FM2, y_align, orig=(0.8 * length(y_align)), h = 1, xre = x_align)
 
-# backtesting comparable, if not a little worse with xreg. There is a lead relationship
+# backtesting comparable, if not a little worse with xreg. There is a lead relationship, 
 # but it is not strong enough to help forecasting
 
 # fed to housing starts:
@@ -541,6 +566,7 @@ x_align2 <- subset(fedfunds_ts, end = n - k)
 # transfer model + diagnostics
 ccf_fit_FH1 <- auto.arima(y_align2, xreg = x_align2)
 ccf_fit_FH1
+Acf(residuals(ccf_fit_FH1))
 coeftest(ccf_fit_FH1)
 Box.test(residuals(ccf_fit_FH1), lag = 24, type = "L")
 
@@ -561,9 +587,15 @@ x_align3 <- subset(log(houses_ts), end = n - k)
 ccf_fit_HM <- auto.arima(y_align3, xreg = x_align3)
 coeftest(ccf_fit_HM)
 
+ccf_fit_HM2 <- Arima(y_align3, order = c(0,1,1), xreg=x_align3)
+ccf_fit_HM2
+coeftest(ccf_fit_HM2)
+Box.test(residuals(ccf_fit_HM2), lag = 24, type = "L")
+
+
 base_hm <- Arima(y_align3, order = c(0,1,1))
 backtest(base_hm,    y_align3, orig = (0.8 * length(y_align3)), h = 1)
-backtest(ccf_fit_HM, y_align3, orig = (0.8 * length(y_align3)), h = 1, xre = x_align3)
+backtest(ccf_fit_HM2, y_align3, orig = (0.8 * length(y_align3)), h = 1, xre = x_align3)
 
 # doesn't help, not a good regression
 # Fed to mortgage: significant lead, but reversed (mortgage leads fed) and no out-of-sample value
@@ -629,3 +661,4 @@ causality(fit4, cause = "mortgage")$Granger
 causality(fit4, cause = "housing")$Granger
 
 plot(irf(fit4, impulse = "mortgage", response = c("fed", "housing"), n.ahead = 24, boot = TRUE))
+
