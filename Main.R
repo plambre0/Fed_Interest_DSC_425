@@ -12,7 +12,6 @@ library(dynlm)
 library(vars)
 
 
-
 fedfunds <- read.csv("FEDFUNDS.csv")
 mortgage <- read.csv("MORTGAGE30US.csv")
 houses <- read.csv("HOUST1F.csv")
@@ -326,7 +325,7 @@ jarque.bera.test(residuals(houses_sarima1))   #j-b test
 # still not great
 
 houses_sarima2 <- Arima(log(houses_ts), order=c(0,1,1),
-                         seasonal=list(order=c(1,0,1), period=12))
+                        seasonal=list(order=c(1,0,1), period=12))
 houses_sarima2
 coeftest(houses_sarima2) # all terms significant
 checkresiduals(houses_sarima2) # good
@@ -334,8 +333,8 @@ Box.test(residuals(houses_sarima2), lag=24, type="Ljung-Box")
 jarque.bera.test(residuals(houses_sarima2)) 
 
 houses_sarima2b <- Arima(log(houses_ts), order=c(0,1,1),
-                        seasonal=list(order=c(1,0,1), period=12),
-                        xreg=recessionPredictor)
+                         seasonal=list(order=c(1,0,1), period=12),
+                         xreg=recessionPredictor)
 houses_sarima2b
 coeftest(houses_sarima2b) # all terms significant
 checkresiduals(houses_sarima2b) # good
@@ -436,7 +435,10 @@ backtest(houses_fit1, log(houses_ts), h=1, orig=.8*length(houses_ts))
 backtest(houses_fit2, log(houses_ts), h=1, orig=.8*length(houses_ts))
 backtest(houses_fit3, log(houses_ts), h=1, orig=.8*length(houses_ts))
 backtest(houses_sarima1, log(houses_ts), h=1, orig=.8*length(houses_ts))
-backtest(houses_sarima2, log(houses_ts), h=1, orig=.8*length(houses_ts))
+backtest(houses_sarima2,  log(houses_ts), h=1, orig=.8*length(houses_ts))
+# houses_sarima2b includes recession xreg and had the best diagnostics; backtest it here
+# Note: backtest() must receive the xreg argument for xreg-fitted models
+backtest(houses_sarima2b, log(houses_ts), h=1, orig=.8*length(houses_ts), xre=recessionPredictor)
 #backtest(houses_sarima3, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
 backtest(houses_sarima4, log(houses_ts), h=1, orig=.8*length(houses_ts))
 #backtest(houses_sarima5, log(houses_ts), h=1, orig=.8*length(houses_ts)) # BT doesn't work
@@ -459,14 +461,15 @@ future_xreg <- cbind(step = rep(1, H),
 future_xreg_scaled <- cbind(step = rep(1, H),
                             ramp = ((last_ramp + 1):(last_ramp + H)) / 227)
 
-## logs back to original uits
-nolog_forecast <- function(forecast) 
-  {forecast$mean <- exp(forecast$mean)
-  forecast$lower <- exp(forecast$lower)
-  forecast$upper <- exp(forecast$upper)
-  forecast$x <- exp(forecast$x)
+## logs back to original units
+nolog_forecast <- function(forecast) {
+  forecast$mean   <- exp(forecast$mean)
+  forecast$lower  <- exp(forecast$lower)
+  forecast$upper  <- exp(forecast$upper)
+  forecast$x      <- exp(forecast$x)
   if (!is.null(forecast$fitted)) forecast$fitted <- exp(forecast$fitted)
-  forecast}
+  forecast
+}
 
 ## Federal funds (no transform, no xreg)
 autoForecastFed <- forecast(fed_fit_auto, h = H); autoplot(autoForecastFed)
@@ -569,12 +572,9 @@ ccf_fit_FH1
 Acf(residuals(ccf_fit_FH1))
 coeftest(ccf_fit_FH1)
 Box.test(residuals(ccf_fit_FH1), lag = 24, type = "L")
-
 # not signifiant xreg
 
 # mortgage to housing starts
-fedfunds_ts <- window(fedfunds_ts, end = c(2025, 12))
-houses_ts <- window(houses_ts, end = c(2025, 12))
 
 ccf(log(mortgage_ts), log(houses_ts))
 prewhiten(log(mortgage_ts), log(houses_ts), x.model = mort_fit1)
@@ -643,9 +643,7 @@ summary(fit4)
 coeftest(fit4)
 autoplot(forecast(fit4, h = 24))
 
-############################################################
-# Train/test split + overlay observed test values (his validation block)
-############################################################
+# train/test splot
 n <- nrow(v)
 n_test <- 24
 
@@ -656,9 +654,13 @@ fit_train <- VAR(train, p = 4, type = "const")
 f <- forecast(fit_train, h = n_test)
 
 # Granger - does each series help predict the others?
+causality(fit_train, cause = "fed")$Granger
+causality(fit_train, cause = "mortgage")$Granger
+causality(fit_train, cause = "housing")$Granger
+
+# Full-sample Granger (for final reporting)
 causality(fit4, cause = "fed")$Granger
 causality(fit4, cause = "mortgage")$Granger
 causality(fit4, cause = "housing")$Granger
 
 plot(irf(fit4, impulse = "mortgage", response = c("fed", "housing"), n.ahead = 24, boot = TRUE))
-
