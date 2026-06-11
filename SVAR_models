@@ -1,0 +1,70 @@
+#run this after main
+
+library(svars)
+
+v_2 <- na.omit(cbind(mortgage = mortgage_ld, fed = fedfunds_diff, housing = houses_ld))
+var_4b <- VAR(v_2, p = 4, type = "const")
+
+Sigma_u <- crossprod(resid(var_4b)) / nrow(resid(var_4b))
+
+A0_restr <- matrix(NA, 3, 3)
+colnames(A0_restr) <- rownames(A0_restr) <- c("mortgage", "fed", "housing")
+
+A0_restr[1, ] <- c(1, 0, 0)
+A0_restr[2, ] <- c(NA, 1, 0)
+A0_restr[3, ] <- c(NA, NA, 1)
+
+B_restr <- diag(NA, 3)
+
+svar_model2 <- SVAR(var_4b,
+                    estmethod = "direct",
+                    Amat = A0_restr,
+                    Bmat = B_restr,
+                    max.iter = 1000)
+
+summary(svar_model2)
+
+A0_r1 <- matrix(NA, 3, 3)
+colnames(A0_r1) <- rownames(A0_r1) <- c("mortgage", "fed", "housing")
+
+#a32 = 0
+A0_r1[1, ] <- c(1, 0, 0)
+A0_r1[2, ] <- c(NA, 1, 0)
+A0_r1[3, ] <- c(NA, 0, 1)
+
+B_r1 <- diag(NA, 3)
+
+svar_r1 <- SVAR(var_4b, estmethod = "direct",
+                Amat = A0_r1, Bmat = B_r1)
+
+summary(svar_r1)
+
+A0_r2 <- matrix(NA, 3, 3)
+colnames(A0_r2) <- rownames(A0_r2) <- c("mortgage", "fed", "housing")
+
+#a31 = 0
+A0_r2[1, ] <- c(1, 0, 0)
+A0_r2[2, ] <- c(NA, 1, 0)
+A0_r2[3, ] <- c(0, NA, 1)
+
+B_r2 <- diag(NA, 3)
+
+svar_r2 <- SVAR(var_4b, estmethod = "direct",
+                Amat = A0_r2, Bmat = B_r2)
+
+summary(svar_r2)
+
+A0_r3 <- matrix(NA, 3, 3)
+colnames(A0_r3) <- rownames(A0_r3) <- c("mortgage", "fed", "housing")
+
+#a31 = a32 = 0
+A0_r3[1, ] <- c(1, 0, 0)
+A0_r3[2, ] <- c(NA, 1, 0)
+A0_r3[3, ] <- c(0, 0, 1)
+
+B_r3 <- diag(NA, 3)
+
+svar_r3 <- SVAR(var_4b, estmethod = "direct",
+                Amat = A0_r3, Bmat = B_r3)
+
+summary(svar_r3)
